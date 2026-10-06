@@ -5,7 +5,22 @@ ADT proxy for New BAdI (Enhancement Implementation BAdIs) commands
 import sap
 import sap.adt
 import sap.cli.core
+import sap.cli.helpers
 import sap.cli.object
+
+
+BADI_LIST_COLUMNS = (
+    sap.cli.helpers.TableWriter.Columns()
+    ('name', 'Name')
+    ('active', 'Active')
+    ('implementing_class.name', 'Class')
+    ('badi_definition.name', 'Definition')
+    ('customizing_lock', 'Customizing')
+    ('default', 'Default')
+    ('example', 'Example')
+    ('short_text', 'Short Text')
+    .done()
+)
 
 
 def mod_log():
@@ -25,9 +40,17 @@ def _list(connection, args):
 
     enho = _get_enhancement_implementation(connection, args)
 
-    for badi in enho.specific.badis.implementations:
-        console.printout(badi.name, badi.active, badi.implementing_class.name, badi.badi_definition.name,
-                         badi.customizing_lock, badi.default, badi.example, badi.short_text)
+    # The default action of the command group (without the sub-command list)
+    # does not have the list's arguments, hence getattr with defaults.
+    noheadings = getattr(args, 'noheadings', False)
+    visible_columns = getattr(args, 'columns', None)
+
+    sap.cli.helpers.TableWriter(
+        enho.specific.badis.implementations,
+        BADI_LIST_COLUMNS,
+        display_header=not noheadings,
+        visible_columns=None if not visible_columns else visible_columns.split(',')
+    ).printout(console)
 
 
 class CommandGroup(sap.cli.core.CommandGroup):
@@ -43,6 +66,9 @@ class CommandGroup(sap.cli.core.CommandGroup):
         arg_parser.add_argument('-i', '--enhancement_implementation', help='BAdI Enhancement Implementation Name')
 
 
+@CommandGroup.argument('--columns', type=str, default=None,
+                       help=sap.cli.helpers.columns_help(BADI_LIST_COLUMNS))
+@CommandGroup.argument('--noheadings', action='store_true', default=False, help='Do not print the header')
 @CommandGroup.command('list')
 def list_badis(connection, args):
     """List BAdIs for the given Enhancement Implementation name"
